@@ -1,0 +1,506 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Barber Shop Maze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&family=Nunito:wght@400;700;800&display=swap">
+<style>
+/* Layout: one centred column. Level tabs, then the sentence the child is building, then the maze, then one shared slot for arrows / word choices / finish card, then the word list. */
+:root {
+  --bg: #E8F1F8;
+  --card: #FFFFFF;
+  --ink: #15304B;
+  --muted: #4A6580;
+  --line: #BFD3E3;
+  --path: #FFFFFF;
+  --hedge: #3E9A5C;
+  --hedge-d: #2E7C48;
+  --gate: #FFD45C;
+  --gate-edge: #C99400;
+  --accent: #FFC22E;
+  --accent-ink: #3B2B00;
+  --good: #17894F;
+  --bad: #C2332C;
+  --bad-solid: #C93A33;
+  --focus: #1D5FD0;
+  --f-display: 'Baloo 2', 'Trebuchet MS', system-ui, sans-serif;
+  --f-body: 'Nunito', system-ui, sans-serif;
+  --f-word: 'Andika', 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1B2A; --card: #162A3F; --ink: #EAF3FB; --muted: #9DB6CC; --line: #2C4660;
+    --path: #203A54; --hedge: #2F7A4A; --hedge-d: #245F39; --gate: #E0B43A; --gate-edge: #A87F00;
+    --good: #4CD08A; --bad: #FF8A82; --focus: #7DB2FF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1B2A; --card: #162A3F; --ink: #EAF3FB; --muted: #9DB6CC; --line: #2C4660;
+  --path: #203A54; --hedge: #2F7A4A; --hedge-d: #245F39; --gate: #E0B43A; --gate-edge: #A87F00;
+  --good: #4CD08A; --bad: #FF8A82; --focus: #7DB2FF;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 20px 40px;
+}
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.app { max-width: 32rem; margin: 0 auto; display: grid; gap: 16px; }
+.top { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.top > div { min-width: 0; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(1.9rem, 8vw, 2.5rem); line-height: 1.05; margin: 0 0 6px; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); font-size: 1.05rem; max-width: 34ch; }
+.chip { border: 2px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: .9rem; white-space: nowrap; }
+.chip[aria-pressed="false"] { color: var(--muted); }
+
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tab { position: relative; display: grid; gap: 0; align-content: start; text-align: left; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 8px 10px; min-height: 4rem; }
+.tab b { font-family: var(--f-display); font-size: 1.05rem; line-height: 1.1; }
+.tab span { font-size: .78rem; color: var(--muted); line-height: 1.2; }
+.tab[aria-current="true"] { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.tab.done::after { content: "\2713"; position: absolute; top: 6px; right: 9px; font-weight: 800; color: var(--good); }
+
+.stage { display: grid; gap: 10px; }
+.where { margin: 0; font-weight: 800; font-size: 1.1rem; text-align: center; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 3.2rem; }
+.slot { min-width: 3.3rem; height: 3.2rem; padding: 0 .7rem; display: inline-flex; align-items: center; justify-content: center; border: 2.5px dashed var(--line); border-radius: 12px; font-family: var(--f-word); font-weight: 700; font-size: 1.5rem; }
+.slot.on { border-style: solid; border-color: var(--good); background: var(--card); }
+.slot.pic svg { width: 2rem; height: 2rem; opacity: .35; }
+.slot.pic.on svg { opacity: 1; }
+
+.maze { container-type: inline-size; position: relative; width: 100%; max-width: 30rem; margin-inline: auto; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: var(--hedge); border: 4px solid var(--hedge-d); }
+.grid { display: grid; grid-template-columns: repeat(var(--cols), 1fr); grid-template-rows: repeat(var(--rows), 1fr); width: 100%; height: 100%; }
+.tile { display: flex; align-items: center; justify-content: center; font-family: var(--f-word); font-weight: 700; font-size: calc(100cqw / var(--cols) * .4); min-width: 0; }
+.tile.wall { background-color: var(--hedge); background-image: radial-gradient(var(--hedge-d) 1.3px, transparent 1.7px); background-size: 9px 9px; }
+.tile.path { background: var(--path); }
+.tile.start { box-shadow: inset 0 0 0 3px var(--line); }
+.tile.gate { background: var(--gate); color: var(--accent-ink); box-shadow: inset 0 0 0 3px var(--gate-edge); cursor: pointer; }
+.tile.gate.open { background: var(--path); color: var(--good); box-shadow: none; opacity: .75; }
+.tile.nosign .ns { display: flex; align-items: center; justify-content: center; width: 78%; height: 78%; border-radius: 50%; background: var(--bad-solid); color: #fff; font-size: .8em; }
+.tile.end { background: var(--accent); color: var(--accent-ink); }
+.tile.end svg { width: 70%; height: 70%; }
+.player { position: absolute; top: 0; left: 0; width: calc(100% / var(--cols)); aspect-ratio: 1; z-index: 2; transition: transform .18s ease-out; pointer-events: none; }
+.player.snap { transition: none; }
+.player svg { width: 100%; height: 100%; display: block; }
+.maze.bump { animation: bump .22s; }
+@keyframes bump { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+.msg { margin: 0; min-height: 1.6em; text-align: center; font-weight: 800; }
+
+.controls { min-height: 13.5rem; display: grid; align-content: start; justify-items: center; }
+.dpad { display: grid; grid-template-columns: repeat(3, 4.4rem); grid-template-areas: ". up ." "left down right"; gap: 8px; }
+.dpad button { height: 4.4rem; border-radius: 18px; border: 2px solid var(--ink); background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 0 var(--ink); display: flex; align-items: center; justify-content: center; }
+.dpad button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.dpad svg { width: 2rem; height: 2rem; }
+.dpad .up { grid-area: up; } .dpad .left { grid-area: left; } .dpad .down { grid-area: down; } .dpad .right { grid-area: right; }
+.again { margin-top: 14px; background: none; border: none; color: var(--muted); text-decoration: underline; font-weight: 700; padding: 6px; }
+
+.panel, .win { width: 100%; background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 14px; display: grid; gap: 12px; }
+.panel-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.panel-head p { margin: 0; font-weight: 800; flex: 1; min-width: 8rem; }
+.btn { font-family: var(--f-display); font-weight: 800; font-size: 1.05rem; border-radius: 14px; border: 2px solid var(--ink); background: var(--accent); color: var(--accent-ink); padding: 8px 16px; box-shadow: 0 3px 0 var(--ink); display: inline-flex; align-items: center; gap: 8px; }
+.btn.ghost { background: var(--card); color: var(--ink); }
+.btn svg { width: 1.3rem; height: 1.3rem; }
+.choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.choice { font-family: var(--f-word); font-weight: 700; font-size: clamp(1.8rem, 9vw, 2.4rem); min-height: 4.6rem; border-radius: 16px; border: 3px solid var(--line); background: var(--bg); color: var(--ink); }
+.choice.wrong { border-color: var(--bad); animation: bump .3s; }
+.win h2 { margin: 0; font-family: var(--f-display); font-size: 1.5rem; }
+.win .read { font-family: var(--f-word); font-weight: 700; font-size: clamp(1.6rem, 8vw, 2.2rem); margin: 0; }
+.win-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.wallet h2 { font-family: var(--f-display); font-size: 1.25rem; margin: 0 0 8px; }
+.words { display: flex; flex-wrap: wrap; gap: 8px; }
+.words .w { font-family: var(--f-word); font-weight: 700; font-size: 1.25rem; padding: 4px 14px; border-radius: 999px; border: 2px dashed var(--line); color: var(--muted); }
+.words .w.on { background: var(--accent); border: 2px solid var(--ink); color: var(--accent-ink); }
+
+.note { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.note summary { font-weight: 800; cursor: pointer; }
+.note p { margin: 10px 0 0; max-width: 60ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .player { transition: none; }
+  .maze.bump, .choice.wrong { animation: none; }
+}
+@media (max-width: 380px) {
+  .tab span { display: none; }
+  .tab { min-height: 3rem; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Barber Shop Maze</h1>
+      <p class="lede">Help Kipper and Dad read their way to the barber shop. Listen, then tap the word that opens each gate.</p>
+    </div>
+    <button id="snd" class="chip" type="button" aria-pressed="true">Sound on</button>
+  </header>
+
+  <nav id="tabs" class="tabs" aria-label="Levels"></nav>
+
+  <section class="stage" aria-label="Maze">
+    <p id="where" class="where"></p>
+    <div id="strip" class="strip"></div>
+    <div id="maze" class="maze" role="img" aria-label="Maze. Use the arrow buttons to walk to the gold square."></div>
+    <p id="msg" class="msg" aria-live="polite"></p>
+  </section>
+
+  <section class="controls">
+    <div id="dpadwrap" style="display:grid;justify-items:center">
+      <div id="dpad" class="dpad">
+        <button class="up" type="button" data-dx="0" data-dy="-1" aria-label="Walk up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+        <button class="left" type="button" data-dx="-1" data-dy="0" aria-label="Walk left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="down" type="button" data-dx="0" data-dy="1" aria-label="Walk down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+        <button class="right" type="button" data-dx="1" data-dy="0" aria-label="Walk right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <button id="again" class="again" type="button">Start this level again</button>
+    </div>
+
+    <div id="panel" class="panel" hidden>
+      <div class="panel-head">
+        <p>Listen. Tap the word you hear.</p>
+        <button id="listen" class="btn" type="button"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M15.5 8.5a5 5 0 010 7M18 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Listen</button>
+      </div>
+      <div id="choices" class="choices"></div>
+      <div><button id="back" class="btn ghost" type="button">Go back</button></div>
+    </div>
+
+    <div id="win" class="win" hidden>
+      <h2>Well done! You read:</h2>
+      <p id="winread" class="read"></p>
+      <div class="win-actions">
+        <button id="readagain" class="btn ghost" type="button">Read it again</button>
+        <button id="next" class="btn" type="button">Next level</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="wallet">
+    <h2>Words I can read <span id="count" style="font-weight:600;color:var(--muted);font-size:1rem"></span></h2>
+    <div id="wallet" class="words"></div>
+  </section>
+
+  <details class="note">
+    <summary>For grown-ups</summary>
+    <p>Read The Haircut together first, then play. Your child walks with the arrows. At each gold gate they listen to the word and tap the matching card. A wrong tap costs nothing: the word is read again.</p>
+    <p>After each level, point to the sentence and read it together. Then hunt for the same words in the book: the, I, to, go and the rest. Children can come back as often as they like, and the words they have found stay lit.</p>
+    <p>If there is no sound on your device, read each word aloud yourself. The word cards work either way. Words practised: I, am, a, is, to, go, no, the, in, me, my, it.</p>
+  </details>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var WORDS = ['I', 'am', 'a', 'is', 'to', 'go', 'no', 'the', 'in', 'me', 'my', 'it'];
+  var LEVELS = [
+    { name: 'To the shop', where: 'Kipper and Dad walk to the barber shop.', w: 4, h: 4, seed: 11, icon: 'scissors', noun: 'shop',
+      words: [{ w: 'I', show: 'I' }, { w: 'go', show: 'go' }, { w: 'to', show: 'to' }, { w: 'the', show: 'the' }] },
+    { name: 'In the chair', where: 'Inside the shop, find the chair.', w: 4, h: 4, seed: 684, icon: 'chair', noun: 'chair',
+      words: [{ w: 'I', show: 'I' }, { w: 'am', show: 'am' }, { w: 'in', show: 'in' }, { w: 'a', show: 'a' }] },
+    { name: 'My hair', where: 'Time for a comb. Find the comb.', w: 4, h: 4, seed: 737, icon: 'comb', noun: 'hair',
+      words: [{ w: 'it', show: 'It' }, { w: 'is', show: 'is' }, { w: 'my', show: 'my' }] },
+    { name: 'Home', where: 'Walk home to show Mum.', w: 5, h: 5, seed: 41, icon: 'house', noun: '',
+      words: [{ w: 'no', show: 'No,' }, { w: 'it', show: 'it' }, { w: 'is', show: 'is' }, { w: 'me', show: 'me!' }] }
+  ];
+
+  var S = 'fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"';
+  var ICONS = {
+    scissors: '<svg viewBox="0 0 40 40" ' + S + ' aria-hidden="true"><circle cx="11" cy="31" r="5"/><circle cx="29" cy="31" r="5"/><path d="M14.5 27L30 6M25.5 27L10 6"/></svg>',
+    chair: '<svg viewBox="0 0 40 40" ' + S + ' aria-hidden="true"><rect x="12" y="5" width="16" height="14" rx="3"/><rect x="8" y="21" width="24" height="6" rx="2"/><path d="M20 27v7M11 35h18"/></svg>',
+    comb: '<svg viewBox="0 0 40 40" ' + S + ' aria-hidden="true"><rect x="5" y="9" width="30" height="7" rx="2"/><path d="M9 16v13M15 16v13M21 16v13M27 16v13M33 16v13"/></svg>',
+    house: '<svg viewBox="0 0 40 40" ' + S + ' aria-hidden="true"><path d="M5 20L20 7l15 13"/><rect x="9" y="20" width="22" height="15" rx="1"/><path d="M17 35V26h6v9"/></svg>'
+  };
+  var PLAYER = '<svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="16" cy="19" r="12" fill="#8CC4F0" stroke="#15304B" stroke-width="2.5"/><circle cx="12.5" cy="17" r="1.7" fill="#15304B"/><circle cx="19.5" cy="17" r="1.7" fill="#15304B"/><path d="M11.5 23Q16 27.5 20.5 23" fill="none" stroke="#15304B" stroke-width="2" stroke-linecap="round"/><circle cx="31" cy="28" r="9" fill="#FFB36B" stroke="#15304B" stroke-width="2.5"/><circle cx="28.3" cy="26.3" r="1.4" fill="#15304B"/><circle cx="33.7" cy="26.3" r="1.4" fill="#15304B"/><path d="M27.8 31Q31 34 34.2 31" fill="none" stroke="#15304B" stroke-width="2" stroke-linecap="round"/></svg>';
+
+  /* ---------- maze generation (seeded, so every child gets the same levels) ---------- */
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function carve(w, h, seed) {
+    var R = rng(seed), cols = 2 * w + 1, rows = 2 * h + 1, g = [], y, x;
+    for (y = 0; y < rows; y++) { g.push([]); for (x = 0; x < cols; x++) g[y].push(1); }
+    var stack = [[1, 1]]; g[1][1] = 0;
+    while (stack.length) {
+      var c = stack[stack.length - 1];
+      var opts = [[2, 0], [-2, 0], [0, 2], [0, -2]].filter(function (d) {
+        var nx = c[0] + d[0], ny = c[1] + d[1];
+        return nx > 0 && ny > 0 && nx < cols - 1 && ny < rows - 1 && g[ny][nx] === 1;
+      });
+      if (!opts.length) { stack.pop(); continue; }
+      var d = opts[Math.floor(R() * opts.length)];
+      g[c[1] + d[1] / 2][c[0] + d[0] / 2] = 0;
+      g[c[1] + d[1]][c[0] + d[0]] = 0;
+      stack.push([c[0] + d[0], c[1] + d[1]]);
+    }
+    return g;
+  }
+  function solve(g, cols, rows) {
+    var ex = cols - 2, ey = rows - 2, prev = {}, q = [[1, 1]];
+    prev['1,1'] = null;
+    while (q.length) {
+      var c = q.shift();
+      if (c[0] === ex && c[1] === ey) break;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        var nx = c[0] + d[0], ny = c[1] + d[1], k = nx + ',' + ny;
+        if (g[ny] && g[ny][nx] === 0 && !(k in prev)) { prev[k] = c; q.push([nx, ny]); }
+      });
+    }
+    var path = [], cur = [ex, ey];
+    while (cur) { path.unshift(cur); cur = prev[cur[0] + ',' + cur[1]]; }
+    return path;
+  }
+  function build(cfg) {
+    for (var s = cfg.seed; s < cfg.seed + 2000; s++) {
+      var cols = 2 * cfg.w + 1, rows = 2 * cfg.h + 1;
+      var g = carve(cfg.w, cfg.h, s), path = solve(g, cols, rows), k = cfg.words.length;
+      if (path.length < k * 4 + 3) continue;
+      var gates = [], ok = true, i;
+      for (i = 0; i < k; i++) {
+        var idx = Math.round(path.length * (i + 1) / (k + 1));
+        if (idx < 3 || idx > path.length - 4) { ok = false; break; }
+        gates.push({ x: path[idx][0], y: path[idx][1], w: cfg.words[i].w, show: cfg.words[i].show });
+      }
+      if (!ok) continue;
+      var onPath = {}; path.forEach(function (p) { onPath[p[0] + ',' + p[1]] = 1; });
+      var leaves = [], x, y;
+      for (y = 1; y < rows - 1; y++) for (x = 1; x < cols - 1; x++) {
+        if (g[y][x] !== 0 || onPath[x + ',' + y]) continue;
+        var n = (g[y][x + 1] === 0) + (g[y][x - 1] === 0) + (g[y + 1][x] === 0) + (g[y - 1][x] === 0);
+        if (n === 1) leaves.push({ x: x, y: y });
+      }
+      if (leaves.length < 3) continue;
+      return { g: g, cols: cols, rows: rows, gates: gates, nos: [leaves[0], leaves[Math.floor(leaves.length / 2)], leaves[leaves.length - 1]], start: [1, 1], end: [cols - 2, rows - 2] };
+    }
+    return null;
+  }
+
+  /* ---------- state ---------- */
+  var KEY = 'barber-maze-progress';
+  var known = {}, done = {}, soundOn = true;
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    (saved.known || []).forEach(function (w) { known[w] = 1; });
+    (saved.done || []).forEach(function (i) { done[i] = 1; });
+  } catch (e) {}
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ known: Object.keys(known), done: Object.keys(done).map(Number) })); } catch (e) {}
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var lv = 0, C, L, px, py, opened, got, finished, pending;
+  var mazeEl = $('maze'), plEl;
+
+  /* ---------- sound ---------- */
+  function say(t) {
+    if (!soundOn) return;
+    try {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(t);
+      u.lang = 'en-GB'; u.rate = 0.8; u.pitch = 1.1;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  var ac;
+  function tone(freqs) {
+    if (!soundOn) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      freqs.forEach(function (f, i) {
+        var o = ac.createOscillator(), g = ac.createGain(), t0 = ac.currentTime + i * 0.12;
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+        o.connect(g); g.connect(ac.destination);
+        o.start(t0); o.stop(t0 + 0.24);
+      });
+    } catch (e) {}
+  }
+
+  /* ---------- helpers ---------- */
+  function gateAt(x, y) { for (var i = 0; i < L.gates.length; i++) if (L.gates[i].x === x && L.gates[i].y === y) return i; return -1; }
+  function isNo(x, y) { return L.nos.some(function (n) { return n.x === x && n.y === y; }); }
+  function sentence() {
+    var t = C.words.map(function (o) { return o.show; }).join(' ') + (C.noun ? ' ' + C.noun : '');
+    return /[!?.]$/.test(t) ? t : t + '.';
+  }
+  function msg(t) { $('msg').textContent = t; }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+  /* ---------- rendering ---------- */
+  function renderTabs() {
+    $('tabs').innerHTML = LEVELS.map(function (l, i) {
+      return '<button type="button" class="tab' + (done[i] ? ' done' : '') + '" data-i="' + i + '"' + (i === lv ? ' aria-current="true"' : '') + '><b>Level ' + (i + 1) + '</b><span>' + l.name + '</span></button>';
+    }).join('');
+  }
+  function renderStrip() {
+    var h = C.words.map(function (o, i) {
+      return '<span class="slot' + (i < got ? ' on' : '') + '">' + (i < got ? o.show : '') + '</span>';
+    }).join('');
+    if (C.noun) h += '<span class="slot pic' + (finished ? ' on' : '') + '" role="img" aria-label="' + C.noun + '">' + ICONS[C.icon] + '</span>';
+    $('strip').innerHTML = h;
+  }
+  function renderWallet() {
+    var n = 0;
+    $('wallet').innerHTML = WORDS.map(function (w) {
+      if (known[w]) n++;
+      return '<span class="w' + (known[w] ? ' on' : '') + '">' + w + '</span>';
+    }).join('');
+    $('count').textContent = n + ' of ' + WORDS.length;
+  }
+  function tileClass(x, y) {
+    if (L.g[y][x] === 1) return 'tile wall';
+    var gi = gateAt(x, y);
+    if (gi >= 0) return 'tile path gate' + (opened[gi] ? ' open' : '');
+    if (isNo(x, y)) return 'tile path nosign';
+    if (x === L.end[0] && y === L.end[1]) return 'tile path end';
+    if (x === L.start[0] && y === L.start[1]) return 'tile path start';
+    return 'tile path';
+  }
+  function renderMaze() {
+    var h = '', x, y, gi;
+    for (y = 0; y < L.rows; y++) for (x = 0; x < L.cols; x++) {
+      var inner = '';
+      gi = gateAt(x, y);
+      if (L.g[y][x] === 0) {
+        if (gi >= 0) inner = L.gates[gi].w;
+        else if (isNo(x, y)) inner = '<span class="ns">no</span>';
+        else if (x === L.end[0] && y === L.end[1]) inner = ICONS[C.icon];
+      }
+      h += '<div class="' + tileClass(x, y) + '" data-x="' + x + '" data-y="' + y + '">' + inner + '</div>';
+    }
+    mazeEl.style.setProperty('--cols', L.cols);
+    mazeEl.style.setProperty('--rows', L.rows);
+    mazeEl.innerHTML = '<div class="grid">' + h + '</div><div class="player snap" id="pl">' + PLAYER + '</div>';
+    plEl = $('pl');
+    placePlayer();
+    void plEl.offsetWidth;
+    plEl.classList.remove('snap');
+  }
+  function placePlayer() { plEl.style.transform = 'translate(' + (px * 100) + '%,' + (py * 100) + '%)'; }
+  function showControls(which) {
+    $('dpadwrap').hidden = which !== 'dpad';
+    $('panel').hidden = which !== 'panel';
+    $('win').hidden = which !== 'win';
+  }
+
+  /* ---------- game flow ---------- */
+  function load(i) {
+    lv = i; C = LEVELS[i]; L = build(C);
+    px = L.start[0]; py = L.start[1];
+    opened = {}; got = 0; finished = false; pending = -1;
+    $('where').textContent = C.where;
+    renderTabs(); renderStrip(); renderWallet(); renderMaze();
+    showControls('dpad');
+    msg('Tap the arrows to walk. Read each gold gate to open it.');
+  }
+
+  function bump() {
+    mazeEl.classList.remove('bump'); void mazeEl.offsetWidth; mazeEl.classList.add('bump');
+  }
+
+  function move(dx, dy) {
+    if (finished || pending >= 0) return;
+    var nx = px + dx, ny = py + dy;
+    if (!L.g[ny] || L.g[ny][nx] !== 0) { bump(); return; }
+    var gi = gateAt(nx, ny);
+    if (gi >= 0 && !opened[gi]) { openPanel(gi); return; }
+    px = nx; py = ny; placePlayer();
+    if (isNo(nx, ny)) { msg('No! This is a dead end. Go back.'); tone([220]); say('No! Go back.'); }
+    else msg('');
+    if (nx === L.end[0] && ny === L.end[1]) win();
+  }
+
+  function openPanel(gi) {
+    pending = gi;
+    var word = L.gates[gi].w;
+    var pool = WORDS.filter(function (w) { return w !== word; });
+    var opts = shuffle([word].concat(shuffle(pool).slice(0, 2)));
+    $('choices').innerHTML = opts.map(function (w) { return '<button type="button" class="choice" data-w="' + w + '">' + w + '</button>'; }).join('');
+    showControls('panel');
+    msg('Listen carefully.');
+    say(word);
+  }
+
+  function answer(btn) {
+    if (pending < 0) return;
+    var gate = L.gates[pending], w = btn.getAttribute('data-w');
+    if (w !== gate.w) {
+      btn.classList.remove('wrong'); void btn.offsetWidth; btn.classList.add('wrong');
+      msg('Try again. Listen once more.');
+      tone([200]);
+      setTimeout(function () { say(gate.w); }, 250);
+      return;
+    }
+    opened[pending] = 1; known[gate.w] = 1; got++; save();
+    var t = mazeEl.querySelector('[data-x="' + gate.x + '"][data-y="' + gate.y + '"]');
+    if (t) t.className = tileClass(gate.x, gate.y);
+    pending = -1;
+    px = gate.x; py = gate.y; placePlayer();
+    renderStrip(); renderWallet();
+    showControls('dpad');
+    msg('The gate is open! You read "' + gate.w + '".');
+    tone([660, 880]);
+    setTimeout(function () { say(gate.w); }, 350);
+  }
+
+  function win() {
+    finished = true; done[lv] = 1; save();
+    renderTabs(); renderStrip();
+    $('winread').textContent = sentence();
+    $('next').textContent = lv < LEVELS.length - 1 ? 'Next level' : 'Play again';
+    showControls('win');
+    msg('You made it!');
+    tone([523, 659, 784]);
+    setTimeout(function () { say(sentence()); }, 700);
+  }
+
+  /* ---------- events ---------- */
+  $('dpad').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    move(+b.getAttribute('data-dx'), +b.getAttribute('data-dy'));
+  });
+  mazeEl.addEventListener('click', function (e) {
+    var t = e.target.closest('.tile'); if (!t) return;
+    var dx = +t.getAttribute('data-x') - px, dy = +t.getAttribute('data-y') - py;
+    if (Math.abs(dx) + Math.abs(dy) === 1) move(dx, dy);
+  });
+  $('choices').addEventListener('click', function (e) { var b = e.target.closest('.choice'); if (b) answer(b); });
+  $('listen').addEventListener('click', function () { if (pending >= 0) say(L.gates[pending].w); });
+  $('back').addEventListener('click', function () { pending = -1; showControls('dpad'); msg('Tap the arrows to walk.'); });
+  $('again').addEventListener('click', function () { load(lv); });
+  $('readagain').addEventListener('click', function () { say(sentence()); });
+  $('next').addEventListener('click', function () { load(lv < LEVELS.length - 1 ? lv + 1 : 0); });
+  $('tabs').addEventListener('click', function (e) { var b = e.target.closest('.tab'); if (b) load(+b.getAttribute('data-i')); });
+  $('snd').addEventListener('click', function () {
+    soundOn = !soundOn;
+    this.setAttribute('aria-pressed', String(soundOn));
+    this.textContent = soundOn ? 'Sound on' : 'Sound off';
+    if (!soundOn) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+  });
+  document.addEventListener('keydown', function (e) {
+    var k = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] }[e.key];
+    if (!k || pending >= 0 || finished) return;
+    e.preventDefault(); move(k[0], k[1]);
+  });
+
+  load(0);
+})();
+</script>
+
+</body></html>
